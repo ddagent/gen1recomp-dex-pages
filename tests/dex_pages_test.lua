@@ -327,9 +327,18 @@ do
   local owned = screenFor(Data.pokemon[A], true)
   T.check(#owned:pages() > 1, "an owned species still gets the extra pages")
 
+  -- On by default: off is incoherent, because the vanilla page says
+  -- "Data unknown." for an uncaught species while the pages behind it would
+  -- be listing its stats, locations and full movelist.
   setOptions({})
-  local off = screenFor(Data.pokemon[A], false)
-  T.check(#off:pages() > 1, "off by default, so unowned mons keep the pages")
+  local byDefault = screenFor(Data.pokemon[A], false)
+  T.eq(#byDefault:pages(), 1,
+       "by default an uncaught species shows only the page the engine gates")
+  T.check(byDefault:pages()[1].vanilla, "and that page is the vanilla one")
+
+  setOptions({ owned_only = false })
+  local opened = screenFor(Data.pokemon[A], false)
+  T.check(#opened:pages() > 1, "turning the gate off shows them anyway")
 end
 
 -- -------------------------------------------------------------- navigation

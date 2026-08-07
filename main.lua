@@ -468,18 +468,40 @@ return function(mod)
       default = true },
     { key = "show_evolution", label = "EVOLUTION PAGE", type = "toggle",
       default = true },
-    -- The vanilla page hides height, weight and the description until the
-    -- species is owned.  On extends that gate to the new pages, so the dex
-    -- cannot be used to scout a mon you have never met.
+    -- On by default, because off is incoherent: the vanilla page says
+    -- "Data unknown." for a species you have not caught while the pages
+    -- behind it list its stats, its locations and its whole movelist.  The
+    -- gate is the same one the engine uses -- owned, not merely seen -- so
+    -- the extra pages appear at exactly the moment the description does.
     { key = "owned_only", label = "OWNED DATA ONLY", type = "toggle",
-      default = false },
+      default = true },
   })
 
   local Screen = {}
   Screen.__index = Screen
   Screen.isOpaque = true
 
+  -- The vanilla page pins the mon-palette zone to tiles (1,1)-(8,8), where
+  -- *its* sprite sits.  The picker draws a different mon somewhere else, so
+  -- it has to move the zone to match -- and name the species the cursor is
+  -- on, not the one whose entry this is.
   function Screen:sgbPalettes(game)
+    local page = self:page()
+    if page and page.cursor and self.picks then
+      local ok, layout = pcall(self.pickerLayout, self)
+      if ok and layout and layout.rect and layout.sel then
+        local P = require("src.render.PaletteFX")
+        local base = P.pal(game.data, "BROWNMON")
+        local mon = P.monPal(game.data, layout.sel.species)
+        if base and mon then
+          local r = layout.rect
+          return { P.whole(base),
+                   P.zone(mon, r.x / 8, r.y / 8,
+                          math.ceil((r.x + r.w) / 8) - 1,
+                          math.ceil((r.y + r.h) / 8) - 1) }
+        end
+      end
+    end
     return self.vanilla and DexEntryMenu.sgbPalettes(self.vanilla, game) or nil
   end
 
@@ -540,18 +562,49 @@ return function(mod)
   -- mod is picked up here too.  Cached because draw runs every frame.
   local sprites = {}
   local function spriteFor(game, species)
-    if sprites[species] ~= nil then return sprites[species] or nil end
-    local ok, path = pcall(function()
-      return (require("src.pokemon.Sprites").path(
-        game.data, species, "front", { kind = "dex" }))
-    end)
+    local hit = sprites[species]
+    if hit ~= nil then
+      if hit == false then return nil end
+      return hit.image, hit.trueColor
+    end
+    -- `path` returns two values and the pcall has to keep both: a
+    -- full-colour pic has to sit out the SGB recolour, and losing that flag
+    -- is how DexEntryMenu once drew every page with no sprite at all.
+    local ok, path, trueColor = pcall(require("src.pokemon.Sprites").path,
+                                      game.data, species, "front",
+                                      { kind = "dex" })
     local image = nil
     if ok and path then
       local built, img = pcall(love.graphics.newImage, path)
       image = built and img or nil
     end
-    sprites[species] = image or false
-    return image
+    sprites[species] = image and { image = image, trueColor = trueColor or false }
+      or false
+    return image, trueColor
+  end
+
+  -- Where the picker puts things.  Shared by draw and sgbPalettes, because
+  -- the SGB pass colours a *rectangle* -- if the palette zone and the sprite
+  -- disagree about where the sprite is, the mon is coloured with whatever
+  -- the rest of the page uses.  That is what made MAGNETON brown.
+  function Screen:pickerLayout()
+    local picks = self.picks
+    if not picks or #picks == 0 then return nil end
+    local sel = picks[math.min(self.pick or 1, #picks)]
+    local methodY = ROW_Y0 + #picks * ROW_H + 4
+    local image, trueColor = nil, false
+    if sel then image, trueColor = spriteFor(self.game, sel.species) end
+    local rect = nil
+    if image then
+      local w, h = image:getDimensions()
+      -- Snapped to whole tiles: an SGB zone is measured in tiles, so a
+      -- sprite sitting half a tile off would be coloured half right.
+      local x = math.floor((W - w) / 16) * 8
+      local y = math.ceil((methodY + 14) / 8) * 8
+      if y + h <= FOOTER_Y then rect = { x = x, y = y, w = w, h = h } end
+    end
+    return { sel = sel, methodY = methodY, image = image,
+             trueColor = trueColor, rect = rect }
   end
 
   function Screen:step(delta)
@@ -696,10 +749,11 @@ return function(mod)
                    W - 16), 8, 4)
     love.graphics.rectangle("fill", 0, 18, W, 1)
 
+    local layout = self:pickerLayout()
     local picks = self.picks
-    local sel = picks[math.min(self.pick or 1, #picks)]
+    local sel = layout and layout.sel
     local y = ROW_Y0
-    for i, entry in ipairs(picks) do
+    for _, entry in ipairs(picks) do
       if entry == sel and #picks > 1 then Font.draw(CURSOR, 6, y) end
       Font.draw(clip(entry.dir .. " " .. entry.name, W - 24), 16, y)
       y = y + ROW_H
@@ -707,21 +761,19 @@ return function(mod)
 
     -- The method belongs to the highlighted entry, so it moves with the
     -- cursor instead of being listed once per row and read twice.
-    y = y + 4
-    if sel then Font.draw(clip(sel.method, W - 16), 8, y) end
+    if sel then Font.draw(clip(sel.method, W - 16), 8, layout.methodY) end
 
     -- The picture goes under the list, not beside it: INTO plus a ten-letter
     -- species name already reaches x=104, which would leave a 56px sprite
     -- nowhere to stand.
-    local image = sel and spriteFor(self.game, sel.species) or nil
-    if image then
-      local w, h = image:getDimensions()
-      local top = y + 14
-      if top + h <= FOOTER_Y then
-        love.graphics.setColor(1, 1, 1, 1)
-        love.graphics.draw(image, math.floor((W - w) / 2), top)
-        love.graphics.setColor(0, 0, 0, 1)
+    if layout and layout.image and layout.rect then
+      local r = layout.rect
+      love.graphics.setColor(1, 1, 1, 1)
+      love.graphics.draw(layout.image, r.x, r.y)
+      if layout.trueColor then
+        require("src.render.PaletteFX").markTrueColor(r.x, r.y, r.w, r.h)
       end
+      love.graphics.setColor(0, 0, 0, 1)
     end
     endFrame()
   end

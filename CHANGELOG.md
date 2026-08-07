@@ -3,6 +3,28 @@
 Format: [keep a changelog](https://keepachangelog.com/en/1.1.0/).
 Version headings match `manifest.json`'s `version`.
 
+## 1.6.0
+
+### Fixed
+
+- **The evolution sprite was the wrong colour** -- MAGNETON drew brown, and
+  only the fragments that happened to overlap one rectangle drew right. The
+  Game Boy colours by zone, not by sprite: the vanilla page pins the mon
+  palette to tiles (1,1)-(8,8), where *its* sprite sits, and the picker
+  draws a different mon centred lower down. The zone now follows the picker,
+  and names the species the cursor is on rather than the one whose entry
+  this is. Placement is snapped to whole tiles, because a zone is measured
+  in tiles and half a tile off colours half the mon.
+- `Sprites.path` returns two values and the call was wrapped in parentheses,
+  which truncated it to one and dropped `trueColor`. A full-colour
+  replacement sprite would have been put through the recolour pass.
+- **`OWNED DATA ONLY` now defaults to on.** Off was incoherent: the vanilla
+  page says "Data unknown." for a species you have not caught while the
+  pages behind it list its whole movelist, every TM it can take, its wild
+  locations and its catch odds. The gate is the engine's own -- owned, not
+  merely seen -- so the extra pages arrive exactly when the description
+  does. Still switchable.
+
 ## 1.5.0
 
 ### Added
