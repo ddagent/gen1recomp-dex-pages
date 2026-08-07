@@ -471,6 +471,45 @@ do
   T.neq(picks[1].species, picks[2].species, "and they are distinct species")
 end
 
+-- ~~~ dex browsing
+
+do
+  -- UP/DOWN steps through the dex on a page with nothing to scroll.  The
+  -- order is by dex number over *seen* species only: browsing into an unseen
+  -- mon would show data the dex itself is still withholding.
+  local Screen = run.loader.exports.dex_pages.screen
+  local function browserFor(seen, at)
+    local game = {
+      data = Data,
+      save = { pokedex = { seen = seen, owned = {} } },
+      input = { wasPressed = function() return false end },
+      stack = { pop = function() end },
+    }
+    return setmetatable({ game = game, def = Data.pokemon[at], owned = true,
+                          index = 1, scroll = 0 }, Screen)
+  end
+
+  local all = { [A] = true, [B] = true, [C] = true }
+  local s = browserFor(all, A)
+  local order = s:seenOrder()
+  T.eq(#order, 3, "all three seen species are in the order")
+  T.check(order[1].dex <= order[2].dex, "sorted by dex number")
+
+  -- only seen species count
+  local partial = browserFor({ [A] = true, [C] = true }, A)
+  T.eq(#partial:seenOrder(), 2, "an unseen species is left out of the order")
+
+  -- a single seen species has nowhere to go
+  local alone = browserFor({ [A] = true }, A)
+  T.check(alone:browse(1) == false, "one seen species does not browse")
+
+  -- a species the player has not seen is not a starting point either: that
+  -- is battle_dex opening a first encounter, and stepping off it is a
+  -- non-sequitur
+  local unseen = browserFor({ [B] = true, [C] = true }, A)
+  T.check(unseen:browse(1) == false, "browsing needs the current mon to be seen")
+end
+
 -- ~~~ charmap
 --
 -- The Game Boy charmap is not ASCII.  "%" and "<" and ">" have no glyph and

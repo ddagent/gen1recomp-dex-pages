@@ -3,6 +3,25 @@
 Format: [keep a changelog](https://keepachangelog.com/en/1.1.0/).
 Version headings match `manifest.json`'s `version`.
 
+## 1.5.0
+
+### Added
+
+- **UP and DOWN step through the dex** on any page with nothing to scroll,
+  keeping the page you are on -- so you can hold DOWN comparing catch odds,
+  or type matchups, across species without going back to the front of each
+  entry. The sprite loads and the cry plays, the way opening an entry does.
+- Only species you have **seen** are in the order, by dex number. Browsing
+  into an unseen mon would hand over data the dex itself is still hiding.
+  Opening a page for a species you have not seen -- which is exactly what
+  battle_dex does on a first encounter -- does not browse at all, because
+  stepping off it would be a non-sequitur.
+
+### Note
+
+On pages that scroll, UP and DOWN still scroll. On pages that do not they
+previously did nothing at all, so this takes nothing away.
+
 ## 1.4.0
 
 ### Changed

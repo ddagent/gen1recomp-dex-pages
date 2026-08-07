@@ -1,7 +1,7 @@
 {
   "id": "dex_pages",
   "name": "Dex Pages",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "api": 2,
   "entry": "main.lua",
   "profile": "content",
@@ -16,6 +16,6 @@
   "permissions": [
     "engine_internals"
   ],
-  "description": "Adds pages to the POKeDEX entry: press A to step through them. The vanilla page with the description is untouched and still comes first. The new pages are type matchups, catch odds for every ball awake and asleep, where the species is found in the wild, the moves it learns by level, its TMs and HMs, and how it evolves.",
+  "description": "Adds pages to the POKeDEX entry: press A to step through them, UP and DOWN to move between the species you have seen. The vanilla page with the description is untouched and still comes first. The new pages are type matchups, catch odds for every ball awake and asleep, where the species is found in the wild, the moves it learns by level, its TMs and HMs, and how it evolves.",
   "github": "ddagent/gen1recomp-dex-pages"
 }

@@ -567,6 +567,53 @@ return function(mod)
     return math.max(0, #self.rows - ROWS)
   end
 
+  -- Species the player has actually seen, in dex order.  Browsing into an
+  -- unseen mon would hand over data the dex itself is still hiding, and the
+  -- vanilla page would be blank anyway.
+  function Screen:seenOrder()
+    local dex = self.game.save and self.game.save.pokedex
+    local seen = dex and dex.seen
+    if not seen then return {} end
+    local list = {}
+    for id, def in pairs(self.game.data.pokemon or {}) do
+      if seen[id] and def.dex then list[#list + 1] = { id = id, dex = def.dex } end
+    end
+    table.sort(list, function(a, b)
+      if a.dex ~= b.dex then return a.dex < b.dex end
+      return a.id < b.id
+    end)
+    return list
+  end
+
+  -- Step to the next/previous seen species, keeping the page you are on --
+  -- so you can hold DOWN through the dex comparing catch odds, or type
+  -- matchups, without going back to the front of each entry.
+  function Screen:browse(delta)
+    local list = self:seenOrder()
+    if #list < 2 then return false end
+    local at = nil
+    for i, entry in ipairs(list) do
+      if entry.id == (self.def and self.def.id) then at = i; break end
+    end
+    -- Not in the list at all means this page was opened for something the
+    -- player has not seen (battle_dex does exactly that on a first
+    -- encounter).  Browsing from there would be a non-sequitur.
+    if not at then return false end
+    local target = list[((at - 1 + delta) % #list) + 1].id
+    local ok, inst = pcall(DexEntryMenu.new, self.game, target, nil)
+    if not ok or not inst or not inst.def then return false end
+    -- A real instance again, so the sprite loads and the cry plays, which is
+    -- what the game does whenever an entry opens.
+    self.vanilla = inst
+    self.def = inst.def
+    self.scroll = 0
+    local dex = self.game.save and self.game.save.pokedex
+    self.owned = inst.forceOwned
+      or (dex and dex.owned and dex.owned[target]) or false
+    self:build()
+    return true
+  end
+
   function Screen:update(dt)
     local input = self.game.input
     local mode = mod.options:get("page_button")
@@ -602,11 +649,22 @@ return function(mod)
         end
         return
       end
-      if self.rows then
-        if input:wasPressed("down") then
+      -- UP/DOWN scrolls where there is something to scroll, and steps
+      -- through the dex where there is not.  On a page that fits on one
+      -- screen the keys were doing nothing at all, so nothing is being
+      -- taken away from anyone.
+      local scrollable = self:maxScroll() > 0
+      if input:wasPressed("down") then
+        if scrollable then
           self.scroll = math.min(self:maxScroll(), self.scroll + ROWS)
-        elseif input:wasPressed("up") then
+        else
+          self:browse(1)
+        end
+      elseif input:wasPressed("up") then
+        if scrollable then
           self.scroll = math.max(0, self.scroll - ROWS)
+        else
+          self:browse(-1)
         end
       end
     end
