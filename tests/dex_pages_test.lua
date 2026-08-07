@@ -81,22 +81,63 @@ end
 -- ~~~ catch odds
 
 do
+  -- The table is two blocks (AWAKE / ASLEEP) of two columns (FULL / 1HP).
+  -- One variable per axis: the old third column meant "1HP *and* asleep",
+  -- which changed two things at once and could not be read on its own.
   local list = rows.catch(Data, Data.pokemon[A])
-  local header = list[1]
-  T.check(header and header.head, "leads with a column header")
+  T.check(list[1] and list[1].head, "leads with a heading")
 
-  local ball = nil
+  local blocks = {}
+  local current = nil
   for _, row in ipairs(list) do
-    if row.cols and not row.head then ball = row; break end
+    if row.head and row.cols then
+      current = { label = row.text, balls = {} }
+      blocks[#blocks + 1] = current
+      T.eq(#row.cols, 2, "each block has two columns")
+    elseif row.cols and current then
+      current.balls[#current.balls + 1] = row
+    end
   end
-  T.check(ball ~= nil, "produces at least one ball row")
+  T.eq(#blocks, 2, "an AWAKE block and an ASLEEP block")
+  T.eq(blocks[1].label, "AWAKE", "awake first")
+  T.eq(blocks[2].label, "ASLEEP", "asleep second")
+  T.check(#blocks[1].balls > 0, "the awake block lists balls")
+  T.eq(#blocks[1].balls, #blocks[2].balls, "both blocks list the same balls")
 
-  local full, low, slp = ball.cols[1], ball.cols[2], ball.cols[3]
-  T.check(type(full) == "number", "full-HP odds are a number")
+  local awake, asleep = blocks[1].balls[1], blocks[2].balls[1]
+  local full, low = awake.cols[1], awake.cols[2]
+  T.check(type(full) == "number", "odds are a number")
   T.check(full >= 0 and full <= 100, "odds are a percentage, not a fraction")
-  -- the whole point of the page: these three must move in the right order
   T.check(low > full, "a hurt mon is easier to catch than a healthy one")
-  T.check(slp > low, "sleep beats no status at the same HP")
+  -- the reason the layout changed: sleep can now be read at full HP, on its
+  -- own, without the HP term moving underneath it
+  T.check(asleep.cols[1] > full, "sleep helps at full HP")
+  T.check(asleep.cols[2] > low, "and still helps at 1HP")
+end
+
+do
+  -- both the always-catch row and the SLP/FRZ tip are gone
+  local list = rows.catch(Data, Data.pokemon[A])
+  T.check(find(list, "MASTER") == nil, "no always-catch ball in the table")
+  T.check(find(list, "always") == nil, "and no always-catch footnote")
+  T.check(find(list, "help most") == nil, "no SLP/FRZ tip line")
+end
+
+do
+  -- bag order, not internal randMax order, which put SAFARI before ULTRA
+  local list = rows.catch(Data, Data.pokemon[A])
+  local seen = {}
+  for _, row in ipairs(list) do
+    if row.cols and not row.head then seen[#seen + 1] = row.text end
+  end
+  local order = table.concat(seen, ",")
+  local poke = order:find("POKE", 1, true)
+  local ultra = order:find("ULTRA", 1, true)
+  local safari = order:find("SAFARI", 1, true)
+  if poke and ultra then T.check(poke < ultra, "POKE before ULTRA") end
+  if ultra and safari then
+    T.check(ultra < safari, "ULTRA before SAFARI (bag order)")
+  end
 end
 
 do
@@ -330,14 +371,16 @@ do
     for _, row in ipairs(list) do
       local used
       if row.cols then
-        -- name, then the three columns right-aligned at 88/120/152
-        -- cells are bare numbers; the % lives in the heading
+        -- Columns are right-aligned, and where they start depends on how
+        -- many there are -- the same table the renderer uses.
+        local LAYOUT = { [1] = { 152 }, [2] = { 112, 152 },
+                         [3] = { 88, 120, 152 } }
+        local xs = LAYOUT[#row.cols] or LAYOUT[3]
         local first = row.cols[1]
         local text = type(first) == "number"
           and ("%d"):format(math.floor(first + 0.5)) or tostring(first or "")
-        used = Font.width(row.text) + Font.width(text) + 8
-        -- the first column's left edge is 88 - its own width
-        if Font.width(row.text) + 8 > 88 - Font.width(text) - 8 then
+        -- the label has to stop a character short of the first column
+        if Font.width(row.text) + 8 > xs[1] - Font.width(text) - 8 then
           used = BUDGET + 1
         else
           used = 0
@@ -371,13 +414,44 @@ do
               "no always-catch ball takes a table row")
     end
   end
-  T.check(find(list, "always") ~= nil, "and it is named in a footer line")
   -- the short form is what buys the clearance
   local named = false
   for _, row in ipairs(list) do
     if row.cols and not row.head and row.text == "POKE" then named = true end
   end
   T.check(named, "ball names drop the redundant BALL")
+end
+
+-- ~~~ evolution picker
+
+do
+  -- The picker is what makes an Eevee page possible: one entry per related
+  -- species, so a cursor can sit on one and a sprite can be drawn from it.
+  local picks = run.loader.exports.dex_pages.picks
+  T.check(type(picks) == "function", "exports the pick builder")
+
+  local one = picks(Data, Data.pokemon[A])
+  T.eq(#one, 1, "FIXMON_A has one relation")
+  T.eq(one[1].dir, "INTO", "and it is an evolution target")
+  T.eq(one[1].species, B, "naming the species a sprite can be loaded for")
+  T.check(one[1].method ~= nil and one[1].method ~= "", "carries its method")
+
+  -- the reverse relation is a pick too: it has a sprite worth showing
+  local back = picks(Data, Data.pokemon[B])
+  T.check(#back >= 1, "FIXMON_B knows what it came from")
+  T.eq(back[1].dir, "FROM", "and that relation is labelled FROM")
+end
+
+do
+  -- three targets is the Eevee case the cursor exists for
+  local data = T.fixtures.fresh()
+  data.pokemon[A].evolutions = {
+    { method = "LEVEL", level = 16, species = B },
+    { method = "LEVEL", level = 18, species = C },
+  }
+  local picks = run.loader.exports.dex_pages.picks(data, data.pokemon[A])
+  T.eq(#picks, 2, "every target is its own pick")
+  T.neq(picks[1].species, picks[2].species, "and they are distinct species")
 end
 
 -- ~~~ charmap

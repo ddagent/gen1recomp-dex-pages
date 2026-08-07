@@ -244,49 +244,45 @@ local function catchRows(data, def)
     return value
   end
 
+  -- Bag order, not internal order.  Sorting by randMax put SAFARI between
+  -- GREAT and ULTRA, which is not how anyone thinks about balls.
+  local BAG = { POKE_BALL = 1, GREAT_BALL = 2, ULTRA_BALL = 3, SAFARI_BALL = 4 }
   local ids = {}
-  for id in pairs(balls) do ids[#ids + 1] = id end
+  for id, record in pairs(balls) do
+    -- A ball that always works has no odds worth tabulating
+    if not (record and record.autoCatch) then ids[#ids + 1] = id end
+  end
   table.sort(ids, function(a, b)
-    local ra, rb = balls[a], balls[b]
-    local ma = ra and ra.autoCatch and -1 or (ra and ra.randMax or 255)
-    local mb = rb and rb.autoCatch and -1 or (rb and rb.randMax or 255)
-    if ma ~= mb then return ma > mb end
+    local ra, rb = BAG[a] or 99, BAG[b] or 99
+    if ra ~= rb then return ra < rb end
     return a < b
   end)
 
-  -- Two reasons this says CHANCE rather than carrying a % in each cell:
-  -- columns are 32px apart and "100%" is exactly 32px, so per-cell signs
-  -- make 95 and 100 touch -- and the Game Boy charmap has no % glyph at
-  -- all, so one printed as a blank space on hardware.
+  -- One variable per axis.  The old layout had FULL / 1HP / SLP, where the
+  -- third column silently changed *two* things at once -- it meant "1HP and
+  -- asleep" -- so there was no way to read the cost of sleep on its own.
+  -- Blocks are the status, columns are the HP.  Every cell is now defined by
+  -- exactly the row block it is in and the column it is under.
+  --
+  -- No % anywhere: the Game Boy charmap has no % glyph -- checked against a
+  -- real imported font table, not assumed -- so one prints as a blank.
   out[#out + 1] = { text = "CHANCE PER THROW", head = true }
-  -- The header's own left cell stays empty: a label there would sit under
-  -- the FULL column, which is the collision this layout exists to avoid.
-  out[#out + 1] = { text = "", head = true, cols = { "FULL", "1HP", "SLP" } }
-  local always = {}
-  for _, id in ipairs(ids) do
-    local record = balls[id]
-    local name = (data.items and data.items[id] and data.items[id].name)
-      or (id:gsub("_", " "))
-    -- A ball that always works has nothing to compare, and its 100% is the
-    -- widest cell on the page; it earns its keep as one line at the bottom.
-    if record and record.autoCatch then
-      always[#always + 1] = name
-    else
-      local full = pct(id, record, maxHp, nil)
-      local low = pct(id, record, 1, nil)
-      local slp = pct(id, record, 1, "SLP")
+  local STATES = { { label = "AWAKE", status = nil },
+                   { label = "ASLEEP", status = "SLP" } }
+  for _, state in ipairs(STATES) do
+    out[#out + 1] = { text = state.label, head = true,
+                      cols = { "FULL", "1HP" } }
+    for _, id in ipairs(ids) do
+      local record = balls[id]
+      local name = (data.items and data.items[id] and data.items[id].name)
+        or (id:gsub("_", " "))
+      local full = pct(id, record, maxHp, state.status)
+      local low = pct(id, record, 1, state.status)
       if full then
-        out[#out + 1] = { text = shortBall(name), cols = { full, low, slp } }
+        out[#out + 1] = { text = shortBall(name), cols = { full, low } }
       end
     end
   end
-  out[#out + 1] = { text = "" }
-  for _, name in ipairs(always) do
-    out[#out + 1] = { text = name .. " always" }
-    out[#out + 1] = { text = "works." }
-  end
-  out[#out + 1] = { text = "SLP/FRZ help most" }
-  out[#out + 1] = { text = "at low HP." }
   return out
 end
 
@@ -405,6 +401,24 @@ local function evolutionRows(data, def)
   return out
 end
 
+-- The same relations as evolutionRows, but flat: one entry per related
+-- species, which is what a cursor can move over and what a sprite can be
+-- drawn from.  Eevee has three targets, so a page that shows only one
+-- picture has to let the player say which.
+local function evolutionPicks(data, def)
+  local out = {}
+  for _, row in ipairs(indexes(data).preEvos[def.id] or {}) do
+    out[#out + 1] = { species = row.from, name = speciesName(data, row.from),
+                      method = methodLabel(data, row.evo), dir = "FROM" }
+  end
+  for _, evo in ipairs(def.evolutions or {}) do
+    out[#out + 1] = { species = evo.species,
+                      name = speciesName(data, evo.species),
+                      method = methodLabel(data, evo), dir = "INTO" }
+  end
+  return out
+end
+
 -- ------------------------------------------------------------- page table
 
 -- `option` is the toggle that hides the page; the vanilla page has none, so
@@ -423,19 +437,20 @@ local PAGES = {
   { key = "tmhm", title = "TM AND HM", option = "show_machines",
     build = machineRows },
   { key = "evo", title = "EVOLUTION", option = "show_evolution",
-    build = evolutionRows },
+    build = evolutionRows, cursor = true, picks = evolutionPicks },
 }
 
 -- ------------------------------------------------------------------ setup
 
 return function(mod)
   mod.options:define({
-    -- LEFT/RIGHT is the default because it is purely additive: A and B still
-    -- close the page exactly as they always have, so nobody's muscle memory
-    -- breaks and the vanilla dex is reachable with the vanilla inputs.
+    -- A steps forward and wraps by default.  B already closes the entry, so
+    -- leaving A as a second close button spent the more reachable of the two
+    -- on a job that was already done.  LEFT/RIGHT keeps A closing for anyone
+    -- who wants the vanilla feel.
     { key = "page_button", label = "DEX PAGE BUTTON", type = "choice",
-      default = "dpad",
-      choices = { { "LEFT/RIGHT", "dpad" }, { "A CYCLES", "cycle" },
+      default = "cycle",
+      choices = { { "A AND D-PAD", "cycle" }, { "D-PAD ONLY", "dpad" },
                   { "OFF", "off" } } },
     { key = "show_types", label = "TYPE MATCHUP PAGE", type = "toggle",
       default = true },
@@ -501,12 +516,38 @@ return function(mod)
 
   function Screen:build()
     local page = self:page()
+    self.picks, self.pick = nil, 1
     if page.vanilla or not page.build then self.rows = nil; return end
     local ok, rows = pcall(page.build, self.game.data, self.def)
     -- A page that throws shows as empty rather than taking the dex down
     -- with it; the other pages and the vanilla page keep working.
     self.rows = (ok and type(rows) == "table") and rows
       or { { text = "No data." } }
+    if page.picks then
+      local got, picks = pcall(page.picks, self.game.data, self.def)
+      if got and type(picks) == "table" and #picks > 0 then
+        self.picks = picks
+      end
+    end
+  end
+
+  -- Front sprites, resolved the way the vanilla dex page resolves its own
+  -- (src/ui/DexEntryMenu.lua): through Sprites.path, so a sprite-replacing
+  -- mod is picked up here too.  Cached because draw runs every frame.
+  local sprites = {}
+  local function spriteFor(game, species)
+    if sprites[species] ~= nil then return sprites[species] or nil end
+    local ok, path = pcall(function()
+      return (require("src.pokemon.Sprites").path(
+        game.data, species, "front", { kind = "dex" }))
+    end)
+    local image = nil
+    if ok and path then
+      local built, img = pcall(love.graphics.newImage, path)
+      image = built and img or nil
+    end
+    sprites[species] = image or false
+    return image
   end
 
   function Screen:step(delta)
@@ -531,16 +572,10 @@ return function(mod)
       return
     end
     if input:wasPressed("a") then
+      -- A steps forward and wraps; it never closes.  B closes, and B alone
+      -- is enough, so spending A on "close" wasted the more useful button.
       if mode == "cycle" then
-        local pages = self:pages()
-        -- A wraps forward and closes off the last page, so it can never
-        -- trap the player on a page with no way out
-        if self.index >= #pages then
-          self.game.stack:pop()
-          if self.onDone then self.onDone() end
-        else
-          self:step(1)
-        end
+        self:step(1)
       else
         self.game.stack:pop()
         if self.onDone then self.onDone() end
@@ -550,6 +585,19 @@ return function(mod)
     if mode ~= "off" then
       if input:wasPressed("right") then self:step(1); return end
       if input:wasPressed("left") then self:step(-1); return end
+      -- On a page with a cursor, UP/DOWN moves the cursor instead of
+      -- scrolling.  Those pages are short by nature -- a species has a
+      -- handful of evolutions, never a screenful -- so there is nothing to
+      -- scroll and the keys are free.
+      local page = self:page()
+      if page.cursor and self.picks and #self.picks > 1 then
+        if input:wasPressed("down") then
+          self.pick = (self.pick % #self.picks) + 1
+        elseif input:wasPressed("up") then
+          self.pick = ((self.pick - 2) % #self.picks) + 1
+        end
+        return
+      end
       if self.rows then
         if input:wasPressed("down") then
           self.scroll = math.min(self:maxScroll(), self.scroll + ROWS)
@@ -560,55 +608,107 @@ return function(mod)
     end
   end
 
-  -- No < > arrows: the Game Boy charmap has no glyph for either, so they
-  -- printed as nothing at all.  "2/7" already says where you are.
-  function Screen:drawFooter(pages)
-    if #pages < 2 then return end
-    local budget = W - 16
-    local last = math.floor(self:maxScroll() / ROWS) + 1
-    -- A one-screen page has no scroll to report, and "1/1" beside the
-    -- title reads as part of the title
-    if last > 1 then
-      local counter = ("%d/%d"):format(math.floor(self.scroll / ROWS) + 1, last)
-      right(counter, W - 8, FOOTER_Y)
-      budget = budget - Font.width(counter) - 8
+  -- The bottom line is nothing but scroll state.  The page's own name used
+  -- to be repeated down here as well as at the top, which said the same
+  -- thing twice and left no room for anything that was not already known.
+  --
+  -- The charmap has no < or >, which is why 1.2.0 had no arrows at all --
+  -- but it does have the triangles the game's own menus use, so a reader
+  -- can be told there is more below without being told in words.
+  local ARROW_DOWN, ARROW_UP, CURSOR = "▼", "▲", "▶"
+
+  function Screen:drawScrollHints()
+    if self:maxScroll() <= 0 then return end
+    if self.scroll > 0 then Font.draw(ARROW_UP, 8, FOOTER_Y) end
+    if self.scroll < self:maxScroll() then
+      right(ARROW_DOWN, W - 8, FOOTER_Y)
     end
-    local label = ("%d/%d %s"):format(self.index, #pages, self:page().title)
-    Font.draw(clip(label, budget), 8, FOOTER_Y)
+  end
+
+  -- A list you move a cursor down, with the picture of whichever entry the
+  -- cursor is on.  The list is one line per relation rather than the two the
+  -- other pages use, because here the cursor has to land on something.
+  function Screen:drawPicker(pages, page)
+    startFrame()
+    Font.draw(clip(("%d/%d %s"):format(self.index, #pages, page.title),
+                   W - 16), 8, 4)
+    love.graphics.rectangle("fill", 0, 18, W, 1)
+
+    local picks = self.picks
+    local sel = picks[math.min(self.pick or 1, #picks)]
+    local y = ROW_Y0
+    for i, entry in ipairs(picks) do
+      if entry == sel and #picks > 1 then Font.draw(CURSOR, 6, y) end
+      Font.draw(clip(entry.dir .. " " .. entry.name, W - 24), 16, y)
+      y = y + ROW_H
+    end
+
+    -- The method belongs to the highlighted entry, so it moves with the
+    -- cursor instead of being listed once per row and read twice.
+    y = y + 4
+    if sel then Font.draw(clip(sel.method, W - 16), 8, y) end
+
+    -- The picture goes under the list, not beside it: INTO plus a ten-letter
+    -- species name already reaches x=104, which would leave a 56px sprite
+    -- nowhere to stand.
+    local image = sel and spriteFor(self.game, sel.species) or nil
+    if image then
+      local w, h = image:getDimensions()
+      local top = y + 14
+      if top + h <= FOOTER_Y then
+        love.graphics.setColor(1, 1, 1, 1)
+        love.graphics.draw(image, math.floor((W - w) / 2), top)
+        love.graphics.setColor(0, 0, 0, 1)
+      end
+    end
+    endFrame()
   end
 
   function Screen:draw()
     local pages = self:pages()
     local page = pages[math.min(self.index, #pages)] or PAGES[1]
     if page.vanilla then
-      -- Nothing is drawn over the vanilla page.  A footer here sits right
-      -- under the last line of the description -- close enough to read as
-      -- the description being cut off -- and the engine draws entry text as
-      -- far down as y=132, which is where the footer would be.
+      -- The vanilla page keeps every one of its own pixels: no footer, no
+      -- title bar.  The one addition is a single arrow in the 8px band
+      -- between WT (which ends at y=62) and the description (which starts
+      -- at y=72) -- the only row on this page the engine never draws into.
+      -- Without it nothing tells a player the other pages exist at all.
       self.vanilla:draw()
+      if #pages > 1 then
+        love.graphics.setColor(0, 0, 0, 1)
+        right(CURSOR, W - 4, 63)
+      end
       endFrame()
       return
     end
     if not self.rows then self:build() end
 
+    if page.cursor and self.picks then
+      self:drawPicker(pages, page)
+      return
+    end
+
     startFrame()
-    -- Title first, then the species name gets whatever is left: PIKACHU and
-    -- TYPE MATCHUP are 19 characters together and the row holds 18.
-    local title = page.title
-    right(title, W - 8, 4)
-    Font.draw(clip(self.def and self.def.name or "?",
-                   W - 16 - Font.width(title) - 8), 8, 4)
+    -- One title, at the top, and no species name: you got here from that
+    -- species' own page, so naming it again spends five characters saying
+    -- what the player already knows -- and PIKACHU + TYPE MATCHUP did not
+    -- fit on one row anyway.
+    Font.draw(clip(("%d/%d %s"):format(self.index, #pages, page.title),
+                   W - 16), 8, 4)
     love.graphics.rectangle("fill", 0, 18, W, 1)
 
     local y = ROW_Y0
     for i = self.scroll + 1, math.min(#self.rows, self.scroll + ROWS) do
       local row = self.rows[i]
       if row.cols then
-        -- The catch table: three right-aligned columns, then whatever room
-        -- is left goes to the ball's name.
-        local xs = { 88, 120, 152 }
+        -- Right-aligned columns, then whatever room is left goes to the
+        -- label.  Fewer columns means wider gaps, which is the whole reason
+        -- the catch table went from three columns to two blocks of two.
+        local LAYOUT = { [1] = { 152 }, [2] = { 112, 152 },
+                         [3] = { 88, 120, 152 } }
+        local xs = LAYOUT[#row.cols] or LAYOUT[3]
         local leftmost = xs[1]
-        for c = 1, 3 do
+        for c = 1, #xs do
           local value = row.cols[c]
           local text = nil
           if type(value) == "number" then
@@ -631,7 +731,7 @@ return function(mod)
       y = y + ROW_H
     end
 
-    self:drawFooter(pages)
+    self:drawScrollHints()
     endFrame()
   end
 
@@ -645,4 +745,5 @@ return function(mod)
     levelMoves = levelMoveRows, machines = machineRows,
     evolution = evolutionRows,
   }
+  mod.exports.picks = evolutionPicks
 end

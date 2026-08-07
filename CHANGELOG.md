@@ -3,6 +3,42 @@
 Format: [keep a changelog](https://keepachangelog.com/en/1.1.0/).
 Version headings match `manifest.json`'s `version`.
 
+## 1.3.0
+
+### Changed
+
+- **A moves to the next page and wraps.** It used to close the entry, which
+  B already did, so the more reachable of the two buttons was spent on a job
+  that was already covered. `D-PAD ONLY` restores the old behaviour.
+- **The page name is at the top now, and only there.** It used to be at the
+  bottom as well, and the species name sat at the top beside it -- which
+  said the same thing twice and still did not fit (`PIKACHU` clipped to
+  `PIKAC` on the type page). You reached this page from that species, so
+  naming it again spends five characters on something already known.
+- **The bottom line is scroll state and nothing else**, using the game's own
+  `▼` and `▲`. 1.2.0 had no arrows because the charmap has no `<` or `>` --
+  but it does have the triangles, which was never checked.
+- **The vanilla page carries a single `▶`** in the 8px band between `WT` and
+  the description, the one row the engine never draws into. Nothing else
+  hinted the other pages existed.
+
+### Fixed
+
+- **The catch table's third column meant two things at once.** `SLP` was
+  "1HP *and* asleep", so the cost of sleep could not be read on its own at
+  any HP. It is now two blocks (`AWAKE` / `ASLEEP`) of two columns (`FULL` /
+  `1HP`): one variable per axis, every cell defined by its block and column.
+- Balls are in bag order. Sorting by the internal `randMax` had put SAFARI
+  between GREAT and ULTRA.
+- The always-catch row and the SLP/FRZ footnote are gone.
+
+### Added
+
+- **The evolution page has a cursor.** UP/DOWN moves between relations and
+  the sprite follows, which is what makes an Eevee page possible -- three
+  targets, one picture. The method moves with the cursor rather than being
+  listed once per row.
+
 ## 1.2.0
 
 Everything here was found by screenshotting all seven pages on real
