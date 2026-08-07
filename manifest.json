@@ -1,0 +1,21 @@
+{
+  "id": "dex_pages",
+  "name": "Dex Pages",
+  "version": "1.2.0",
+  "api": 2,
+  "entry": "main.lua",
+  "profile": "content",
+  "game_version": ">=0.0.0-0 <2.0.0",
+  "category": "UI",
+  "priority": 100,
+  "dependencies": [],
+  "optional_dependencies": [],
+  "conflicts": [],
+  "incompatible": [],
+  "experimental": false,
+  "permissions": [
+    "engine_internals"
+  ],
+  "description": "Adds pages to the POKeDEX entry, reached with LEFT and RIGHT. The vanilla page with the description is untouched and still comes first. The new pages are type matchups, catch odds as a percentage for every ball, where the species is found in the wild, the moves it learns by level, its TMs and HMs, and how it evolves.",
+  "github": "ddagent/gen1recomp-dex-pages"
+}
