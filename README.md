@@ -11,29 +11,29 @@ corner is the only mark on it.
 
 ## The pages
 
+### Type matchup
+
 ![Type matchup: PIKACHU takes 2x from GROUND and 1/2x from ELECTRIC and FLYING](docs/page-2-type-matchup.png)
+
+### Catch odds
 
 ![Catch odds: a table of percentages per ball, awake and asleep, at full HP and at 1HP](docs/page-3-catch-odds.png)
 
-A Great Ball can beat an Ultra Ball at full health and lose to it at 1 HP.
-That is the real game's maths, not a mistake here.
+### Locations
 
 ![Locations: POWER PLANT at L20-24 and VIRIDIAN FOREST at L3-5](docs/page-4-locations.png)
 
-Surfing and all three rods count. Something you can only get by evolving or
-trading says so.
+### Level moves
 
 ![The level-up movelist for PIKACHU, from THUNDERSHOCK at START to THUNDER at L41](docs/page-5-level-moves.png)
 
+### TM and HM
+
 ![The TM and HM list for PIKACHU, by machine number](docs/page-6-tm-and-hm.png)
 
-Gen 1 has no move tutors, so these two lists are all there is.
+### Evolution
 
 ![Evolution: INTO RAICHU by THUNDERSTONE, with RAICHU's sprite](docs/page-7-evolution.png)
-
-It shows what a mon came from as well, which your own dex cannot. Where
-there is more than one outcome — EEVEE — **UP** and **DOWN** move a cursor
-and the picture follows.
 
 ## Buttons
 
@@ -42,7 +42,7 @@ and the picture follows.
 | **A** | next page, wrapping round |
 | **B** | close |
 | **LEFT** / **RIGHT** | back and forward a page |
-| **UP** / **DOWN** | scroll a long page, or step to the next POKéMON when there is nothing to scroll |
+| **UP** / **DOWN** | scroll a long page, pick an evolution, or step to the next POKéMON |
 
 Stepping through the dex keeps the page you are on, so you can hold **DOWN**
 comparing catch odds across species without reopening each entry. Only ones
