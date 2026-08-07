@@ -116,6 +116,23 @@ do
 end
 
 do
+  -- Blocks are separated by a blank row.  This pushes the page past one
+  -- screen, which is fine -- it scrolls like the movelist -- and is the
+  -- point: eleven unbroken rows of numbers read as a single slab.
+  local list = rows.catch(Data, Data.pokemon[A])
+  local blanks = 0
+  for i, row in ipairs(list) do
+    if row.text == "" then
+      blanks = blanks + 1
+      local next_row = list[i + 1]
+      T.check(next_row and next_row.head and next_row.cols,
+              "a blank row always introduces a block header")
+    end
+  end
+  T.eq(blanks, 2, "one blank above each of the two blocks")
+end
+
+do
   -- both the always-catch row and the SLP/FRZ tip are gone
   local list = rows.catch(Data, Data.pokemon[A])
   T.check(find(list, "MASTER") == nil, "no always-catch ball in the table")

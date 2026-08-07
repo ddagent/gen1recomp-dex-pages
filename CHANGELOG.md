@@ -3,6 +3,25 @@
 Format: [keep a changelog](https://keepachangelog.com/en/1.1.0/).
 Version headings match `manifest.json`'s `version`.
 
+## 1.4.0
+
+### Changed
+
+- The catch table has a blank row above each block. Eleven unbroken rows of
+  numbers read as one slab. This pushes the page past a single screen, which
+  is fine -- it scrolls like the movelist, with the same `▼`.
+- The vanilla page's hint moved to the bottom-right corner and now reads
+  `1/7 ▶` rather than sitting in the gap above the description. That corner
+  is provably free: all 151 descriptions are exactly six lines, so the last
+  row the engine draws ends at y=130 and nothing ever reaches y=134.
+
+### Note
+
+Move tutors do not exist in Gen 1 -- they arrive in Gen 2 -- so START moves,
+the level-up learnset and TM/HM are the complete set of ways a species can
+learn anything here. The only "tutor" in the engine is the Viridian old
+man's catch tutorial, which teaches nothing.
+
 ## 1.3.0
 
 ### Changed

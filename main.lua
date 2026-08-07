@@ -270,6 +270,10 @@ local function catchRows(data, def)
   local STATES = { { label = "AWAKE", status = nil },
                    { label = "ASLEEP", status = "SLP" } }
   for _, state in ipairs(STATES) do
+    -- A blank row above each block.  Eleven rows of numbers with nothing
+    -- between them read as one slab; the page scrolls like the movelist
+    -- does, so the two rows this costs are cheaper than the density.
+    out[#out + 1] = { text = "" }
     out[#out + 1] = { text = state.label, head = true,
                       cols = { "FULL", "1HP" } }
     for _, id in ipairs(ids) do
@@ -668,15 +672,15 @@ return function(mod)
     local pages = self:pages()
     local page = pages[math.min(self.index, #pages)] or PAGES[1]
     if page.vanilla then
-      -- The vanilla page keeps every one of its own pixels: no footer, no
-      -- title bar.  The one addition is a single arrow in the 8px band
-      -- between WT (which ends at y=62) and the description (which starts
-      -- at y=72) -- the only row on this page the engine never draws into.
-      -- Without it nothing tells a player the other pages exist at all.
+      -- The vanilla page keeps every one of its own pixels.  The one
+      -- addition sits in the bottom-right corner, which is provably free:
+      -- every one of the 151 descriptions is exactly six lines, so the last
+      -- one the engine draws ends at y=130 and nothing ever reaches this
+      -- row.  Without it nothing tells a player the other pages exist.
       self.vanilla:draw()
       if #pages > 1 then
         love.graphics.setColor(0, 0, 0, 1)
-        right(CURSOR, W - 4, 63)
+        right(("%d/%d "):format(self.index, #pages) .. CURSOR, W - 8, 134)
       end
       endFrame()
       return

@@ -1,7 +1,7 @@
 {
   "id": "dex_pages",
   "name": "Dex Pages",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "api": 2,
   "entry": "main.lua",
   "profile": "content",
