@@ -1,3 +1,11 @@
 # Exact relative paths, one per line: tests are for the checkout, not the
-# shipped package.
+# shipped package. Screenshots are for the README -- players download them
+# once from GitHub, not with every mod update.
 tests/dex_pages_test.lua
+docs/page-1-data.png
+docs/page-2-type-matchup.png
+docs/page-3-catch-odds.png
+docs/page-4-locations.png
+docs/page-5-level-moves.png
+docs/page-6-tm-and-hm.png
+docs/page-7-evolution.png
