@@ -672,4 +672,39 @@ do
   T.eq(notPush[2], "CHANSEY", "and so is another command")
 end
 
+-- ------- the entry page and the pages behind it are separate decisions
+--
+-- A glimpse in battle should read like the show: point the dex at the thing
+-- and it tells you what it is.  It should not hand over the stats, the
+-- catch odds and the whole movelist for something never caught.  A zoo
+-- placard, which exists to show you the exhibit, still gets everything.
+do
+  setOptions({})
+  local function ownedWith(realOwned, forceOwned, entryOnly)
+    local self = setmetatable({ game = newGame(), def = { id = A },
+                                index = 1, scroll = 0,
+                                entryOnly = entryOnly or false,
+                                vanilla = { forceOwned = forceOwned or false } },
+                              Screen)
+    local dex = { owned = realOwned and { [A] = true } or {} }
+    return self:ownedFor(A, dex)
+  end
+
+  T.eq(ownedWith(false, true, false), true,
+    "a placard forces the whole entry open")
+  T.eq(ownedWith(false, true, true), false,
+    "entryOnly opens the entry page without claiming the species is owned")
+  T.eq(ownedWith(true, true, true), true,
+    "a species you actually own is owned however it was opened")
+  T.eq(ownedWith(false, false, false), false,
+    "and nothing is invented for one you neither own nor forced")
+
+  -- and that flows through to how many pages are offered
+  local def = Data.pokemon[A]
+  T.eq(#screenFor(def, false):pages(), 1,
+    "not owned: the entry page alone")
+  T.check(#screenFor(def, true):pages() > 1,
+    "owned: the pages behind it as well")
+end
+
 T.finish("dex_pages")

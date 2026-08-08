@@ -3,6 +3,14 @@
 Format: [keep a changelog](https://keepachangelog.com/en/1.1.0/).
 Version headings match `manifest.json`'s `version`.
 
+## 1.7.1
+
+### Added
+
+- `entryOnly` splits what `forceOwned` used to decide at once: the entry
+  page can be opened in full while the pages behind it keep following real
+  ownership. A glimpse in battle uses it; a zoo placard does not, because
+  the sign exists to show you the exhibit.
 ## 1.7.0
 
 ### Fixed

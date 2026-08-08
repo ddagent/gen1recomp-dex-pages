@@ -539,9 +539,30 @@ return function(mod)
     self.scroll = 0
     self.rows = nil
     local dex = game.save and game.save.pokedex
-    self.owned = self.vanilla.forceOwned
-      or (dex and dex.owned and dex.owned[self.def and self.def.id]) or false
+    -- `entryOnly` splits the two things forceOwned used to decide at once.
+    --
+    -- A glimpse in battle should read like the show: you point the POKeDEX
+    -- at the thing and it tells you what it is -- the entry page, in full.
+    -- It should NOT hand over the stats, the catch odds, the locations and
+    -- the whole movelist for something you have never caught.  So the
+    -- vanilla page is forced open (that is DexEntryMenu's own forceOwned,
+    -- untouched here) while the extra pages keep following real ownership.
+    --
+    -- A zoo placard passes no entryOnly and gets everything: the sign
+    -- exists to show you the exhibit.
+    self.entryOnly = type(speciesOrOpts) == "table"
+      and speciesOrOpts.entryOnly or false
+    self.owned = self:ownedFor(self.def and self.def.id, dex)
     return self
+  end
+
+  -- Real ownership, unless the caller forced the page open AND did not ask
+  -- for the entry alone.
+  function Screen:ownedFor(id, dex)
+    local real = (dex and dex.owned and dex.owned[id]) or false
+    if real then return true end
+    if self.entryOnly then return false end
+    return self.vanilla.forceOwned or false
   end
 
   function Screen:page()
@@ -670,8 +691,7 @@ return function(mod)
     self.def = inst.def
     self.scroll = 0
     local dex = self.game.save and self.game.save.pokedex
-    self.owned = inst.forceOwned
-      or (dex and dex.owned and dex.owned[target]) or false
+    self.owned = self:ownedFor(target, dex)
     self:build()
     return true
   end
