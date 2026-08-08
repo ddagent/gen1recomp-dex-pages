@@ -520,7 +520,22 @@ return function(mod)
     if mod.options:get("page_button") == "off" then return out end
     local locked = mod.options:get("owned_only") == true
       and not self.owned
-    if locked then return out end
+    if locked then
+      -- CATCH ODDS is the exception.  Everything else behind the entry is
+      -- reference material you can look up once it is yours; the odds are
+      -- what you need in the moment, deciding whether to spend a ball on
+      -- the thing standing in front of you.  Only for an entry opened AT a
+      -- POKeMON -- browsing the dex still shows nothing you have not caught.
+      if self.entryOnly then
+        for i = 2, #PAGES do
+          if PAGES[i].key == "catch"
+             and mod.options:get(PAGES[i].option) ~= false then
+            out[#out + 1] = PAGES[i]
+          end
+        end
+      end
+      return out
+    end
     for i = 2, #PAGES do
       local page = PAGES[i]
       if mod.options:get(page.option) ~= false then out[#out + 1] = page end
@@ -552,6 +567,12 @@ return function(mod)
     -- exists to show you the exhibit.
     self.entryOnly = type(speciesOrOpts) == "table"
       and speciesOrOpts.entryOnly or false
+    -- Opened AT something rather than looked up: the POKeMON in front of you
+    -- in a battle, or the one you picked in the party menu.  Stepping from
+    -- there to the next species in the dex is a non-sequitur -- you asked
+    -- about this one.
+    self.pinned = type(speciesOrOpts) == "table"
+      and speciesOrOpts.pinned or false
     self.owned = self:ownedFor(self.def and self.def.id, dex)
     return self
   end
@@ -672,6 +693,7 @@ return function(mod)
   -- so you can hold DOWN through the dex comparing catch odds, or type
   -- matchups, without going back to the front of each entry.
   function Screen:browse(delta)
+    if self.pinned then return false end
     local list = self:seenOrder()
     if #list < 2 then return false end
     local at = nil

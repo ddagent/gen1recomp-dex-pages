@@ -707,4 +707,62 @@ do
     "owned: the pages behind it as well")
 end
 
+-- ------- an entry opened AT a POKeMON stays on it
+--
+-- You asked about the one in front of you, or the one you picked in the
+-- party menu.  Stepping from there into the rest of the dex is a
+-- non-sequitur, and mid-battle it is worse than that.
+do
+  setOptions({})
+  local function pinnedScreen(pinned)
+    local g = newGame()
+    g.save.pokedex = { seen = { [A] = true, [B] = true, [C] = true },
+                       owned = { [A] = true } }
+    return setmetatable({ game = g, def = { id = A }, index = 1, scroll = 0,
+                          pinned = pinned, vanilla = { forceOwned = false } },
+                        Screen)
+  end
+  T.eq(pinnedScreen(true):browse(1), false, "a pinned entry does not browse")
+  T.eq(pinnedScreen(true):browse(-1), false, "in either direction")
+  T.eq(pinnedScreen(false):browse(1), true,
+    "one opened from the POKeDEX still browses as before")
+end
+
+-- ------- CATCH ODDS survives the ownership gate for a glimpse
+--
+-- Everything else behind the entry is reference you can look up once it is
+-- yours.  The odds are what you need in the moment, deciding whether to
+-- spend a ball on the thing in front of you.
+do
+  setOptions({})
+  -- forceOwned is what battle_dex passes to open the entry page itself; the
+  -- POKeDEX list passes nothing, so it has to be off for that case or the
+  -- species counts as owned and nothing is gated at all
+  local function pagesFor(entryOnly, owned)
+    local g = newGame()
+    g.save.pokedex = { seen = {}, owned = owned and { [A] = true } or {} }
+    local self = setmetatable({ game = g, def = { id = A }, index = 1,
+                                scroll = 0, entryOnly = entryOnly,
+                                vanilla = { forceOwned = entryOnly } }, Screen)
+    self.owned = self:ownedFor(A, g.save.pokedex)
+    local keys = {}
+    for _, p in ipairs(self:pages()) do keys[#keys + 1] = p.key or "vanilla" end
+    return table.concat(keys, ",")
+  end
+  T.check(pagesFor(true, false):find("catch"),
+    "unowned, opened at a POKeMON: the odds are there")
+  T.check(not pagesFor(true, false):find("where"),
+    "but not its locations, which can wait until you own it")
+  T.check(not pagesFor(false, false):find("catch"),
+    "browsing the dex unowned still shows nothing behind the entry")
+  T.check(pagesFor(true, true):find("where"),
+    "and once it is yours everything opens as before")
+
+  -- turning the page off still turns it off
+  setOptions({ show_catch = false })
+  T.check(not pagesFor(true, false):find("catch"),
+    "CATCH ODDS PAGE off means off, glimpse or not")
+  setOptions({})
+end
+
 T.finish("dex_pages")

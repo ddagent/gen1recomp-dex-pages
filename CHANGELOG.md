@@ -3,6 +3,20 @@
 Format: [keep a changelog](https://keepachangelog.com/en/1.1.0/).
 Version headings match `manifest.json`'s `version`.
 
+## 1.8.0
+
+### Changed
+
+- **An entry opened at a POKeMON stays on it.** UP and DOWN used to walk off
+  into the rest of the POKeDEX, which is not what anybody means by opening
+  the entry for the thing they are fighting. Opening one from the POKeDEX
+  list still browses as before.
+- **CATCH ODDS shows for a POKeMON you have only seen**, when the entry was
+  opened at it. Everything else behind the entry is reference you can look
+  up once it is yours; the odds are what you need in the moment, deciding
+  whether to spend a ball on what is standing in front of you. Browsing the
+  dex still shows nothing for a species you have not caught.
+
 ## 1.7.1
 
 ### Added
