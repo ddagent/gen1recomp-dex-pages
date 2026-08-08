@@ -606,4 +606,70 @@ do
   end
 end
 
+-- ------- the ball table is merged, not chosen
+--
+-- data.balls is the mod REGISTRY, not extracted ROM data: it holds whatever
+-- a mod overrode and nothing else.  Choosing it wholesale over the stock
+-- table left the CATCH ODDS page drawing its column headers with not one
+-- row underneath -- which is exactly what it did on the device, while the
+-- fixture (which has no data.balls at all) fell back to stock and passed.
+do
+  local def = { id = "TESTMON", catchRate = 100,
+                baseStats = { hp = 50, attack = 50, defense = 50,
+                              speed = 50, special = 50 } }
+
+  local function ballRows(data)
+    return rows.catch(data, def)
+  end
+
+  -- an EMPTY registry -- the device case
+  local function ballCount(out)
+    local n = 0
+    for _, r in ipairs(out or {}) do
+      if r.cols and not r.head then n = n + 1 end
+    end
+    return n
+  end
+
+  T.check(ballCount(ballRows({ balls = {}, items = {} })) > 0,
+    "an empty ball registry still lists the stock balls")
+
+  -- a registry that overrides ONE ball keeps the other four
+  T.check(ballCount(ballRows({ items = {},
+      balls = { GREAT_BALL = { randMax = 180, hpFactor = 12 } } })) > 1,
+    "overriding one ball does not hide the rest")
+end
+
+-- ------- a zoo placard shows the whole entry
+--
+-- The FUCHSIA signs open a dex entry deliberately, so hiding it behind
+-- ownership defeats the exhibit.  A glimpse in battle is different and is
+-- left alone -- only a script reaches this hook.
+do
+  local Runtime = require("src.mods.Runtime")
+  local function through(name, args)
+    return Runtime.call("script.command", function(_, _, a) return a end,
+                        {}, name, args)
+  end
+
+  local args = { "DexEntryMenu", "CHANSEY" }
+  through("push_screen", args)
+  T.check(type(args[2]) == "table", "the bare species becomes an options table")
+  T.eq(args[2].species, "CHANSEY", "naming the same species")
+  T.eq(args[2].forceOwned, true, "and asking for the full entry")
+
+  -- an options table already carrying a decision is left as it was
+  local explicit = { "DexEntryMenu", { species = "MEW", forceOwned = false } }
+  through("push_screen", explicit)
+  T.eq(explicit[2].forceOwned, false, "an explicit choice is not overridden")
+
+  -- nothing else is touched
+  local other = { "SomeOtherScreen", "CHANSEY" }
+  through("push_screen", other)
+  T.eq(other[2], "CHANSEY", "another screen is left alone")
+  local notPush = { "DexEntryMenu", "CHANSEY" }
+  through("show_text", notPush)
+  T.eq(notPush[2], "CHANSEY", "and so is another command")
+end
+
 T.finish("dex_pages")

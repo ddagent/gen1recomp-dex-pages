@@ -234,7 +234,16 @@ local function catchRows(data, def)
   end
   local ok, stats = pcall(Stats.calc, def, REF_LEVEL, REF_DVS, nil)
   local maxHp = (ok and stats and stats.hp) or 50
-  local balls = data.balls or Catching.BALLS or {}
+  -- Merged, not chosen.  data.balls is the mod REGISTRY, not extracted ROM
+  -- data: it holds whatever a mod overrode and nothing else, so picking it
+  -- wholesale left this page enumerating an empty table -- the column
+  -- headers drew and not one row under them.  BattleState:ballDef falls
+  -- back per ball (`balls[ball] or Catching.BALLS[ball]`); this is the same
+  -- thing for the whole set, so a mod that retunes GREAT BALL changes that
+  -- one row and the other four keep their stock numbers.
+  local balls = {}
+  for id, record in pairs(Catching.BALLS or {}) do balls[id] = record end
+  for id, record in pairs(data.balls or {}) do balls[id] = record end
 
   local function pct(ballId, record, hp, status)
     local mon = { hp = hp, status = status, stats = { hp = maxHp } }
@@ -850,6 +859,30 @@ return function(mod)
   end
 
   mod.content.screens:register("DexEntryMenu", { new = Screen.new })
+
+  -- ------- an exhibit shows you the exhibit
+  --
+  -- A placard exists to show you the animal.  The FUCHSIA zoo signs open a
+  -- dex entry on purpose (`push_screen DexEntryMenu CHANSEY`), so hiding
+  -- the data behind OWNED DATA ONLY defeats the point of the sign -- unlike
+  -- a glimpse of something in battle, which really is only a glimpse.
+  --
+  -- The script hands the species across as a bare string; DexEntryMenu also
+  -- accepts an options table, so it is swapped for one that says "treat
+  -- this as owned".  Only a script can reach this: an entry opened from the
+  -- POKeDEX list or from a battle never passes through script.command.
+  mod.hooks:wrap("script.command", function(nextFn, ctx, name, args)
+    if name == "push_screen" and type(args) == "table"
+       and args[1] == "DexEntryMenu" then
+      local target = args[2]
+      if type(target) == "string" then
+        args[2] = { species = target, forceOwned = true }
+      elseif type(target) == "table" and target.forceOwned == nil then
+        target.forceOwned = true
+      end
+    end
+    return nextFn(ctx, name, args)
+  end)
 
   -- The joins are the reusable part: another mod wanting "where does this
   -- live" should not have to invert the encounter table a second time.

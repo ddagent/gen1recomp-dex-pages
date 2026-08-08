@@ -3,6 +3,22 @@
 Format: [keep a changelog](https://keepachangelog.com/en/1.1.0/).
 Version headings match `manifest.json`'s `version`.
 
+## 1.7.0
+
+### Fixed
+
+- **CATCH ODDS drew its column headers and no rows.** `data.balls` is the
+  mod registry, not extracted ROM data: it holds whatever a mod overrode and
+  nothing else. This page picked it over the stock table wholesale, so an
+  empty registry meant an empty page. It now merges the two the way
+  `BattleState:ballDef` does, per ball -- a mod that retunes GREAT BALL
+  changes that one row and the other four keep their stock numbers.
+
+### Added
+
+- **A zoo placard shows the whole entry.** The FUCHSIA signs open a dex page
+  on purpose, so hiding it behind ownership defeats the exhibit. A sign now
+  opens the full entry; a glimpse in battle is still only a glimpse.
 ## 1.6.0
 
 ### Fixed
